@@ -1,0 +1,10 @@
+i=35:1000;
+x=1.02.^-i;
+y=x.*0.99./(x.*0.99+(1-x).*0.01);
+z=x.*0.99./(x.*0.99+(1-x).*0.001);
+w=x.*0.99./(x.*0.99+(1-x).*0.00001);
+semilogx(x,y,x,z,x,w)
+title('Rate of correct positive results')
+xlabel('Share of population infected (log)')
+ylabel('Probability of a positive diagnosis being correct')
+legend('99%-specificity','99.9%-specificity','99.999%-specificity','location','northwest')
