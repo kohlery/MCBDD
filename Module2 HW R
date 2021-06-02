@@ -1,0 +1,134 @@
+---
+title: "Module2 HW R"
+author: "Yannick Kohler"
+date: "12 5 2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+source("mysetup.r")
+library(knitr)
+library(janitor)
+library(httr)
+library(jsonlite)
+library(magrittr)
+library(XML)
+library(rvest)
+```
+
+## R Markdown
+
+
+## Ex 1
+```{r Ex 1, include=TRUE,results='markup'}
+rm(list = ls())
+
+URL<-"https://www.ebi.ac.uk/chembl/api/data/molecule.json?max_phase=4&limit=1000"
+
+X<-GET(URL)
+
+Xx<-fromJSON(rawToChar(X$content))
+Xa<-Xx$molecules
+Xa<-Xa[c(15,9)]
+
+for (i in 1:3){
+URL<-paste0("https://www.ebi.ac.uk/chembl/api/data/molecule.json?max_phase=4&limit=1000&offset=",i,"000")
+X<-GET(URL)
+Xb<-fromJSON(rawToChar(X$content))
+Xb<-Xb$molecules
+Xb<-Xb[c(15,9)]
+Xa<-rbind(Xa,Xb)
+}
+
+URL<-paste0("https://www.ebi.ac.uk/chembl/api/data/molecule.json?max_phase=4&limit=35&offset=4000")
+X<-GET(URL)
+Xb<-fromJSON(rawToChar(X$content))
+Xb<-Xb$molecules
+Xb<-Xb[c(15,9)]
+Xa<-rbind(Xa,Xb)
+n=length(Xa[[1]])
+print(n)
+save(Xa, file = "drugsXa.RData")
+rm(X,Xx,Xb,i,n,URL)
+```
+
+## Ex 1
+```{r Ex 1.1, include=TRUE,results='markup'}
+load("drugsXa.RData")
+Xa<-filter(Xa,first_approval>2010)
+n=length(Xa[[1]])
+Xa<-Xa[order(Xa$molecule_chembl_id),]
+  URL<-paste0("https://www.ebi.ac.uk/chembl/api/data/mechanism.json?molecule_chembl_id=",Xa[1,1])
+  X<-GET(URL)
+  Xb<-fromJSON(rawToChar(X$content))
+  Xb<-Xb$mechanism
+  Xb<-Xb[16]
+  
+for (i in 2:n) {
+  URL<-paste0("https://www.ebi.ac.uk/chembl/api/data/mechanism.json?molecule_chembl_id=",Xa[i,1])
+  X<-GET(URL)
+  Xc<-fromJSON(rawToChar(X$content))
+  Xc<-Xc$mechanism
+  Xc<-Xc[16]
+  Xb<-rbind(Xb,Xc)
+}
+  
+  n<-length(Xb[[1]])
+  Xb<-drop_na(Xb)
+  print(length(Xb[[1]])/(length(Xa[[1]])-(n-length(Xb[[1]]))))
+  m<-length(Xa[[1]])
+  save(Xb,m, file = "drugsXb.RData")
+  rm(Xa,Xc,n,URL,X,i)
+```
+
+```{r Ex 1.2, include=TRUE,results='markup'}
+load("drugsXb.RData")
+
+n=length(Xb[[1]])
+  URL<-paste0("https://www.ebi.ac.uk/chembl/api/data/target.json?target_chembl_id=",Xb[1,1])
+  X<-GET(URL)
+  Xc<-fromJSON(rawToChar(X$content))
+  Xc<-Xc$targets
+  Xc<-data.frame(Xc$target_components)
+  Xc<-Xc[1]
+  
+for (i in 2:n) {
+  URL<-paste0("https://www.ebi.ac.uk/chembl/api/data/target.json?target_chembl_id=",Xb[i,1])
+  X<-GET(URL)
+  Xd<-fromJSON(rawToChar(X$content))
+  Xd<-Xd$targets
+ if (Xd$target_type=="SMALL MOLECULE"||Xd$target_type=="METAL"||Xd$target_type=="OLIGOSACCHARIDE"
+     ||Xd$target_type=="UNKNOWN"||Xd$target_type=="NUCLEIC-ACID"||Xd$target_type=="LIPID"
+     ||Xd$target_type=="MACROMOLECULE"||Xd$target_type=="SUBCELLULAR"){}
+  else{
+   Xd<-data.frame(Xd$target_components)
+   Xd<-Xd[1]
+   Xc<-rbind(Xc,Xd)}
+}
+print(paste0("number of acession points=",length(Xc[[1]])))
+print(paste0("number of acession points/total cases=",length(Xc[[1]])/m))
+rm(X,Xb,Xd,i,m,n,URL)
+save(Xc, file = "drugsXc.RData")
+```
+
+
+```{r Ex 1.1, include=TRUE,results='markup'}
+load("drugsXc.RData")
+
+n=length(Xc[[1]])
+  URL<-paste0("https://www.ebi.ac.uk/proteins/api/proteins/",Xc[1,1])
+  X<-GET(URL)
+  Xd<-fromJSON(rawToChar(X$content))
+  Xd<-Xd$keywords
+  
+  for (i in 1:n) {
+  URL<-paste0("https://www.ebi.ac.uk/proteins/api/proteins/",Xc[i,1])
+  X<-GET(URL)
+  Xe<-fromJSON(rawToChar(X$content))
+  Xe<-Xe$keywords
+  Xe<-Xe[1]
+  Xd<-rbind(Xd,Xe)
+  }
+  sort(table(Xd$value), decreasing=TRUE)[1]
+```
